@@ -41,10 +41,27 @@ def build_stratified_split(labels, train_ratio=0.6, valid_ratio=0.2, seed=42):
     return split_idx
 
 
+def _download_amazon_computer(root):
+    """Download via PyG when NPZ is missing (works on Kaggle and clean environments)."""
+    try:
+        from torch_geometric.datasets import Amazon
+        Amazon(root=str(root), name="Computers")
+    except Exception as e:
+        raise FileNotFoundError(
+            f"amazon_co_buy_computer.npz not found under {root} and auto-download failed: {e}\n"
+            "Place the file manually or ensure torch-geometric is installed."
+        ) from e
+
+
 def find_amazon_computer_npz(root):
     root = Path(root)
     candidates = sorted(root.glob("amazon_co_buy_computer*/amazon_co_buy_computer.npz"))
     candidates += sorted(root.glob("**/amazon_co_buy_computer.npz"))
+    if not candidates:
+        _download_amazon_computer(root)
+        # Search again after download (PyG saves under root/Amazon/Computers/raw/)
+        candidates = sorted(root.glob("amazon_co_buy_computer*/amazon_co_buy_computer.npz"))
+        candidates += sorted(root.glob("**/amazon_co_buy_computer.npz"))
     if not candidates:
         raise FileNotFoundError(f"amazon_co_buy_computer.npz not found under {root}")
     return candidates[0]
