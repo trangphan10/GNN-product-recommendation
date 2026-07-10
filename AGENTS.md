@@ -19,11 +19,31 @@ Set each improvement's args to their "off" values to isolate individual contribu
 GraphML_GAMLP_v2/
 ├── load_dataset.py                  # Dataset loading (Amazon Co-Buy Computer)
 ├── train_improved_gamlp.py          # Improved GAMLP with all 3 improvements
+├── train_resnext_gamlp.py           # GAMLP + ResNeXt-FFN/SwiGLU backbone
+├── gnn_common.py                    # Shared utils for the baseline scripts below (pure-torch, no torch-scatter/-sparse)
+├── train_mlp.py                     # MLP baseline (no graph)
+├── train_gcn.py                     # GCN baseline (Kipf & Welling)
+├── train_graphsage.py               # GraphSAGE baseline (mean aggregator, full-batch or mini-batch neighbour sampling)
+├── train_gat.py                     # GAT baseline (multi-head attention)
+├── train_graph_transformer.py       # Local (edge-restricted) graph transformer baseline
 ├── requirements.txt                 # Python dependencies
 ├── GAMLP_original/
 │   └── train_gamlp_products.py      # Unmodified baseline for comparison
 └── plans/
     └── architecture.md              # Design rationale for all improvements
+```
+
+## Baseline architecture scripts (`train_mlp.py`, `train_gcn.py`, `train_graphsage.py`, `train_gat.py`, `train_graph_transformer.py`)
+
+Five standalone, resource-light baselines to compare against the GAMLP variants above, all trained on the same Amazon Computers split from `load_dataset.py`. They deliberately avoid `torch-geometric.nn` / `torch-scatter` / `torch-sparse` message-passing kernels (see the warning in `requirements.txt` about compiled extensions needing to match the torch build) and instead implement propagation with plain PyTorch `scatter_add_` / `scatter_reduce` ops in `gnn_common.py`. Full graph + a 2-layer, 64-hidden model comfortably fits in well under 200MB, so all of them (except `train_graphsage.py` in `--sampling` mode) train full-batch.
+
+```bash
+python train_mlp.py                                    # no graph at all — resource floor
+python train_gcn.py                                    # Kipf & Welling GCN
+python train_graphsage.py                              # mean-aggregator SAGE, full-batch
+python train_graphsage.py --sampling --batch-size 512 --fanout 10 10   # mini-batch neighbour sampling
+python train_gat.py                                     # multi-head attention, small heads/head-dim by default
+python train_graph_transformer.py                       # transformer block with attention restricted to graph edges (not O(N^2))
 ```
 
 ## Installation
