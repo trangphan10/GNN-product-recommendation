@@ -109,6 +109,22 @@ def gcn_norm_edge_weight(edge_index, num_nodes):
     return deg_inv_sqrt[row] * deg_inv_sqrt[col]
 
 
+def scatter_max_feat(src, index, dim_size):
+    """Max-aggregation over feature vectors using scatter_reduce_ (PyTorch 1.12+).
+    Nodes with no incoming edges keep the initial value of 0."""
+    out = src.new_zeros(dim_size, src.size(-1))
+    out.scatter_reduce_(0, index.unsqueeze(-1).expand_as(src), src, reduce="amax", include_self=False)
+    return out
+
+
+def scatter_std_feat(src, index, dim_size, mean=None):
+    """Std-dev aggregation: sqrt(E[x²] − E[x]²). Uses a pre-computed mean if supplied."""
+    if mean is None:
+        mean = scatter_mean(src, index, dim_size)
+    sq_mean = scatter_mean(src * src, index, dim_size)
+    return (sq_mean - mean * mean).clamp(min=0).sqrt()
+
+
 def build_adjacency_list(edge_index, num_nodes):
     """Python list of 1-D LongTensors: neighbours of each node. Only used by
     train_graphsage.py's mini-batch neighbour-sampling mode."""
