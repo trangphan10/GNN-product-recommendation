@@ -114,3 +114,31 @@ class AccuracyEvaluator:
         y_true = input_dict["y_true"].view(-1)
         y_pred = input_dict["y_pred"].view(-1)
         return {"acc": float((y_true == y_pred).float().mean().item())}
+
+
+def load_split_idx_csv(path):
+    """Load a pre-saved train/valid/test split from a two-column CSV (split,idx).
+
+    The CSV must have a header row 'split,idx' followed by one row per node.
+    Produced once by save_split_idx_csv() so every model evaluates on the
+    exact same train/valid/test node sets — fair cross-model comparison.
+    """
+    parts = {"train": [], "valid": [], "test": []}
+    with open(path, newline="", encoding="utf-8") as f:
+        next(f)  # skip header
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            split, idx = line.split(",", 1)
+            parts[split].append(int(idx))
+    return {k: torch.tensor(v, dtype=torch.long) for k, v in parts.items()}
+
+
+def save_split_idx_csv(split_idx, path):
+    """Persist a split_idx dict to CSV so it can be reloaded with load_split_idx_csv."""
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("split,idx\n")
+        for name in ("train", "valid", "test"):
+            for idx in split_idx[name].tolist():
+                f.write(f"{name},{idx}\n")

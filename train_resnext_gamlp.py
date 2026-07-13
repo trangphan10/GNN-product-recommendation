@@ -38,7 +38,7 @@ REPO_ROOT = Path(__file__).resolve().parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from load_dataset import AccuracyEvaluator, load_products
+from load_dataset import AccuracyEvaluator, load_products, load_split_idx_csv
 
 
 # ============================================================
@@ -115,6 +115,9 @@ def parse_args():
     parser.add_argument("--checkpoint", type=str, default="")
     parser.add_argument("--cache-features", action="store_true")
     parser.add_argument("--cache-dir", type=str, default="outputs/cache")
+    parser.add_argument("--split-file", type=str, default="split_idx.csv",
+                        help="Pre-saved CSV split for fair cross-model comparison. "
+                             "Empty string to regenerate from --seed.")
     return parser.parse_args()
 
 
@@ -739,9 +742,12 @@ def run_once(args, run_id, device):
     )
     set_seed(args.seed + run_id)
 
-    data, labels, split_idx, num_classes = load_products(
-        args.dataset_root, logger, split_seed=args.seed + run_id
-    )
+    data, labels, split_idx, num_classes = load_products(args.dataset_root, logger, split_seed=args.seed)
+    split_file = Path(args.split_file) if args.split_file else None
+    if split_file and split_file.is_file():
+        split_idx = load_split_idx_csv(split_file)
+        logger.info("Fixed split from %s  train=%d valid=%d test=%d",
+                    split_file, split_idx["train"].numel(), split_idx["valid"].numel(), split_idx["test"].numel())
     feats = precompute_features(data, args.num_hops, args.cache_dir, args.cache_features, logger)
     in_feats = feats[0].size(1)
     evaluator = AccuracyEvaluator()
