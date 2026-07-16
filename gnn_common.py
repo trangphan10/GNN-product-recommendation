@@ -122,7 +122,8 @@ def scatter_std_feat(src, index, dim_size, mean=None):
     if mean is None:
         mean = scatter_mean(src, index, dim_size)
     sq_mean = scatter_mean(src * src, index, dim_size)
-    return (sq_mean - mean * mean).clamp(min=0).sqrt()
+    # eps giữ variance > 0: gradient của sqrt tại 0 là vô cùng → loss NaN
+    return ((sq_mean - mean * mean).clamp(min=0) + 1e-6).sqrt()
 
 
 def build_adjacency_list(edge_index, num_nodes):
