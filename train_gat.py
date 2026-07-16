@@ -32,7 +32,8 @@ if str(REPO_ROOT) not in sys.path:
 from load_dataset import AccuracyEvaluator, load_products, load_split_idx_csv
 from gnn_common import (
     add_self_loops, append_jsonl, count_params, get_device, make_output_dir,
-    scatter_add, scatter_softmax, set_seed, setup_logger, write_json,
+    plot_training_curves, scatter_add, scatter_softmax, set_seed, setup_logger,
+    write_json,
 )
 
 
@@ -206,6 +207,9 @@ def run_once(args, run_id, device):
         "best_epoch": best_epoch, "output_dir": str(out_dir),
     }
     write_json(out_dir / "results.json", result)
+    plot_path = plot_training_curves(metrics_path, out_dir, title="GAT")
+    if plot_path:
+        logger.info("Saved training curves: %s", plot_path)
     logger.info("Final: %s", result)
     return result
 

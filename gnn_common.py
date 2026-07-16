@@ -61,6 +61,81 @@ def append_jsonl(path, payload):
         f.write(json.dumps(payload, sort_keys=True) + "\n")
 
 
+def plot_training_curves(metrics_path, out_dir, title=None):
+    """Vẽ loss và accuracy theo epoch từ metrics.jsonl, lưu curves.png vào out_dir.
+
+    Mỗi dòng jsonl cần các key: epoch, loss, train_acc, val_acc (có thể None),
+    best_test. Key "stage" (GAMLP huấn luyện nhiều stage) là tuỳ chọn — ranh
+    giới giữa các stage được đánh dấu bằng vạch đứng, trục x nối liền qua stage.
+    Trả về đường dẫn file ảnh, hoặc None nếu thiếu matplotlib / không có dữ liệu.
+    """
+    metrics_path = Path(metrics_path)
+    if not metrics_path.exists():
+        return None
+    records = [json.loads(line) for line in
+               metrics_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    if not records:
+        return None
+
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except ImportError:
+        logging.getLogger(__name__).warning(
+            "matplotlib chưa được cài — bỏ qua vẽ biểu đồ training curves")
+        return None
+
+    xs        = list(range(len(records)))
+    loss      = [r.get("loss") for r in records]
+    train_acc = [r.get("train_acc") for r in records]
+    val_pts   = [(i, r["val_acc"]) for i, r in enumerate(records)
+                 if r.get("val_acc") is not None]
+    best_test = records[-1].get("best_test")
+
+    # Ranh giới stage (nếu có): index đầu tiên của mỗi stage mới
+    stage_starts = [i for i in range(1, len(records))
+                    if records[i].get("stage") != records[i - 1].get("stage")]
+
+    fig, (ax_loss, ax_acc) = plt.subplots(1, 2, figsize=(11, 4))
+
+    ax_loss.plot(xs, loss, color="tab:red", linewidth=1.2)
+    ax_loss.set_xlabel("Epoch")
+    ax_loss.set_ylabel("Train loss")
+    ax_loss.set_title("Loss")
+
+    ax_acc.plot(xs, train_acc, color="tab:blue", linewidth=1.2, label="train")
+    if val_pts:
+        vx, vy = zip(*val_pts)
+        ax_acc.plot(vx, vy, color="tab:orange", linewidth=1.2, label="valid")
+        bi = max(range(len(vy)), key=lambda k: vy[k])
+        ax_acc.scatter([vx[bi]], [vy[bi]], color="tab:orange", zorder=3,
+                       label=f"best valid = {vy[bi]:.4f}")
+    if best_test is not None and best_test >= 0:
+        ax_acc.axhline(best_test, color="tab:green", linestyle="--", linewidth=1,
+                       label=f"best test = {best_test:.4f}")
+    ax_acc.set_xlabel("Epoch")
+    ax_acc.set_ylabel("Accuracy")
+    ax_acc.set_title("Accuracy")
+    ax_acc.legend(loc="lower right", fontsize=8)
+
+    for ax in (ax_loss, ax_acc):
+        ax.grid(alpha=0.3)
+        for s in stage_starts:
+            ax.axvline(s, color="gray", linestyle=":", linewidth=1)
+    if stage_starts:
+        ax_loss.set_xlabel("Epoch (nối liền qua các stage)")
+        ax_acc.set_xlabel("Epoch (nối liền qua các stage)")
+
+    if title:
+        fig.suptitle(title)
+    fig.tight_layout()
+    out_path = Path(out_dir) / "curves.png"
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+    return out_path
+
+
 def count_params(model):
     return sum(p.numel() for p in model.parameters())
 

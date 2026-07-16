@@ -41,8 +41,8 @@ if str(REPO_ROOT) not in sys.path:
 from load_dataset import AccuracyEvaluator, load_products, load_split_idx_csv
 from gnn_common import (
     append_jsonl, build_adjacency_list, count_params, get_device, make_output_dir,
-    scatter_add, scatter_max_feat, scatter_mean, scatter_std_feat,
-    set_seed, setup_logger, write_json,
+    plot_training_curves, scatter_add, scatter_max_feat, scatter_mean,
+    scatter_std_feat, set_seed, setup_logger, write_json,
 )
 
 
@@ -447,6 +447,12 @@ def run_once(args, run_id, device):
         "output_dir":    str(out_dir),
     }
     write_json(out_dir / "results.json", result)
+    plot_path = plot_training_curves(
+        metrics_path, out_dir,
+        title=f"Improved GraphSAGE (multi_aggr={args.multi_aggr}, jk={args.jk_mode})",
+    )
+    if plot_path:
+        logger.info("Saved training curves: %s", plot_path)
     logger.info("Final: %s", result)
     return result
 

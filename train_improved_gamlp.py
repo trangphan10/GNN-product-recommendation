@@ -833,6 +833,13 @@ def run_once(args, run_id, device):
         "output_dir": str(out_dir),
     }
     write_json(out_dir / "results.json", result)
+    from gnn_common import plot_training_curves
+    plot_path = plot_training_curves(
+        out_dir / "metrics.jsonl", out_dir,
+        title=f"Improved GAMLP ({args.mode})",
+    )
+    if plot_path:
+        logger.info("Saved training curves: %s", plot_path)
     logger.info("Final: %s", result)
     return result
 

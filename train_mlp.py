@@ -24,8 +24,8 @@ if str(REPO_ROOT) not in sys.path:
 
 from load_dataset import AccuracyEvaluator, load_products, load_split_idx_csv
 from gnn_common import (
-    append_jsonl, count_params, get_device, make_output_dir, set_seed,
-    setup_logger, write_json,
+    append_jsonl, count_params, get_device, make_output_dir, plot_training_curves,
+    set_seed, setup_logger, write_json,
 )
 
 
@@ -161,6 +161,9 @@ def run_once(args, run_id, device):
         "best_epoch": best_epoch, "output_dir": str(out_dir),
     }
     write_json(out_dir / "results.json", result)
+    plot_path = plot_training_curves(metrics_path, out_dir, title="MLP")
+    if plot_path:
+        logger.info("Saved training curves: %s", plot_path)
     logger.info("Final: %s", result)
     return result
 
